@@ -2,13 +2,17 @@
 # This script interactively applies each configuration step.
 # For settings that cannot be modified via registry or Group Policy, messages will
 # be displayed instead of changes.
+# セキュリティ報告書の内容を基に、対話形式で各設定を実施するスクリプトです。
+# レジストリやグループポリシーで変更できない項目は、通知のみを表示します。
 
 function Confirm-Action($message) {
+    # 確認メッセージを表示し、Y または y が入力されたら処理を続行します。
     $response = Read-Host "$message [Y/N]"
     return $response -match '^[Yy]'
 }
 
 # Registry setting for NetBIOS node type
+# NetBIOS のノードタイプをピアツーピア (0x2) に設定します。
 if (Confirm-Action 'Set NetBIOS NodeType to peer-to-peer (0x2)?') {
     New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters' -Force | Out-Null
     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters' -Name 'NodeType' -Value 2 -Type DWord
@@ -18,6 +22,7 @@ if (Confirm-Action 'Set NetBIOS NodeType to peer-to-peer (0x2)?') {
 }
 
 # Domain password and account lockout policy
+# ドメインのパスワードおよびアカウントロックアウトポリシーを強化します。
 if (Confirm-Action 'Configure domain password and lockout policy?') {
     Import-Module ActiveDirectory
     $domain = (Get-ADDomain).DistinguishedName
@@ -36,6 +41,7 @@ if (Confirm-Action 'Configure domain password and lockout policy?') {
 }
 
 # Built-in Administrator account hardening
+# 組み込み Administrator アカウントの名前変更、パスワードランダム化、無効化を行います。
 if (Confirm-Action 'Rename, randomize password and disable built-in Administrator account?') {
     Import-Module ActiveDirectory
     $admin = Get-ADUser -Filter {ObjectSID -like '*-500'}
@@ -55,6 +61,7 @@ if (Confirm-Action 'Rename, randomize password and disable built-in Administrato
 }
 
 # Disable Guest account
+# ゲストアカウントを無効化します。
 if (Confirm-Action 'Disable Guest account?') {
     Import-Module ActiveDirectory
     $guest = Get-ADUser -Filter {SamAccountName -eq 'Guest'} -ErrorAction SilentlyContinue
@@ -69,6 +76,7 @@ if (Confirm-Action 'Disable Guest account?') {
 }
 
 # Restrict NTLM authentication (LmCompatibilityLevel)
+# NTLM 認証を NTLMv2 のみに制限するため、LmCompatibilityLevel を 5 に設定します。
 if (Confirm-Action 'Set LmCompatibilityLevel to 5 (NTLMv2 only)?') {
     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name 'LmCompatibilityLevel' -Type DWord -Value 5
     Write-Output 'LmCompatibilityLevel set to 5.'
@@ -77,6 +85,7 @@ if (Confirm-Action 'Set LmCompatibilityLevel to 5 (NTLMv2 only)?') {
 }
 
 # Reminder for LAPS deployment
+# LAPS (Local Administrator Password Solution) を導入するようリマインドします。
 if (Confirm-Action 'Display reminder to deploy Local Administrator Password Solution (LAPS)?') {
     Write-Output 'Ensure LAPS is installed and a GPO is configured to manage local administrator passwords.'
 }
