@@ -79,9 +79,45 @@ if (Confirm-Action 'Disable Guest account?') {
 # NTLM 認証を NTLMv2 のみに制限するため、LmCompatibilityLevel を 5 に設定します。
 if (Confirm-Action 'Set LmCompatibilityLevel to 5 (NTLMv2 only)?') {
     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name 'LmCompatibilityLevel' -Type DWord -Value 5
-    Write-Output 'LmCompatibilityLevel set to 5.'
+Write-Output 'LmCompatibilityLevel set to 5.'
 } else {
     Write-Output 'Skipped LmCompatibilityLevel configuration.'
+}
+
+# UAC settings to enforce elevation prompts on the secure desktop
+# UAC の昇格プロンプトを常にセキュリティで保護されたデスクトップで表示する設定
+if (Confirm-Action 'Configure UAC to always prompt on the secure desktop?') {
+    $uacPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+    New-Item -Path $uacPath -Force | Out-Null
+    Set-ItemProperty -Path $uacPath -Name 'PromptOnSecureDesktop' -Type DWord -Value 1
+    Set-ItemProperty -Path $uacPath -Name 'ConsentPromptBehaviorAdmin' -Type DWord -Value 2
+    Write-Output 'UAC secure desktop configuration applied.'
+} else {
+    Write-Output 'Skipped UAC secure desktop configuration.'
+}
+
+# Disable SMBv1 protocol and require SMB signing
+# SMBv1 を無効化し、サーバー・クライアントともにデジタル署名を必須とします。
+if (Confirm-Action 'Disable SMBv1 and require SMB signatures?') {
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -RequireSecuritySignature $true -Force
+    Set-SmbClientConfiguration -EnableSMB1Protocol $false -RequireSecuritySignature $true
+    Write-Output 'SMBv1 disabled and SMB signatures required.'
+} else {
+    Write-Output 'Skipped SMB hardening.'
+}
+
+# Change RDP port and add firewall rule
+# RDP の既定ポートを変更し、ファイアウォール規則を更新します。
+if (Confirm-Action 'Change RDP port to 3390 and update firewall rule?') {
+    $rdpPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+    New-Item -Path $rdpPath -Force | Out-Null
+    Set-ItemProperty -Path $rdpPath -Name 'PortNumber' -Type DWord -Value 3390
+    if (Get-NetFirewallRule -DisplayName 'Remote Desktop - User Mode (TCP-In)') {
+        Set-NetFirewallRule -DisplayName 'Remote Desktop - User Mode (TCP-In)' -LocalPort 3390
+    }
+    Write-Output 'RDP port changed to 3390.'
+} else {
+    Write-Output 'Skipped RDP port change.'
 }
 
 # Reminder for LAPS deployment
